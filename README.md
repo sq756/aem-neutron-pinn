@@ -1,27 +1,37 @@
-# aem-neutron-pinn
+<p align="right">
+  <a href="README.zh-CN.md"><img alt="中文" src="https://img.shields.io/badge/lang-%E4%B8%AD%E6%96%87-red"></a>
+  <a href="README.md"><img alt="English" src="https://img.shields.io/badge/lang-English-blue"></a>
+</p>
 
-Data-first repo for 2D neutron imaging of AEM electrolyzers.
+# AEM Neutron → PINN
 
-**Goals**
-- Align frames (deskew + window rectification) so pixels are comparable across operating points.
-- Two-level ROIs: Window ROI (for OD/alpha) and Flowfield ROI (for channel-level stats).
-- Convert OD = -ln(I/I_ref) to relative/absolute alpha.
-- Batch export alpha maps and metrics (mean alpha, heterogeneity eta, axial decay length Ld, bridging flag).
+Data-first repo for **2D neutron imaging** of AEM electrolyzers and weakly supervised **PINN** modeling.
 
-**Quick start**
-1) `pip install -r requirements.txt`
-2) Put images of one geometry in a folder and include exactly one reference frame (filename contains `ref`).
-3) Run: `python scripts/batch_process.py --in_dir your_data/geometry_A --ref_glob *ref*.png --img_glob *.png --out_dir outputs/geometry_A`
+## What you get
+- **Alignment**: deskew + window rectification → pixel-to-pixel comparable frames.
+- **Two-level ROIs**: *Window ROI* (for **OD/α**) and *Flowfield ROI* (for channel stats).
+- **OD → α**: `OD = -ln(I/I_ref)` → relative/absolute α (with `mu_w`, `H`).
+- **Batch metrics**: mean α (̄α), heterogeneity (η), axial decay length (Ld), bridging flag (B).
+
+## Quick start
+```bash
+pip install -r requirements.txt
+python scripts/batch_process.py \ 
+  --in_dir data/geometry_A \ 
+  --ref_glob '*ref*.png' \ 
+  --img_glob '*.png' \ 
+  --out_dir outputs/geometry_A
+```
 
 **Outputs**
-- *_warped_window.png : rectified window (use for OD)
-- *_alpha_rel.png     : relative alpha (0-1)
-- metrics.csv         : bar_alpha, eta, Ld, bridge per image
+- `*_warped_window.png`  – rectified window (use for OD/α)
+- `*_alpha_rel.png`      – relative α map (0–1)
+- `metrics.csv`          – ̄α, η, Ld, B per image
 
 **Notes**
-- Use the same reference frame for all operating points of a given geometry.
-- Compute OD/alpha inside Window ROI; compute stats inside Flowfield ROI.
-- If you know mu_w (water attenuation) and H (effective thickness), the script can output absolute alpha; otherwise it returns relative alpha.
+- Use **one reference frame per geometry**.
+- Compute OD/α inside *Window ROI*; compute statistics inside *Flowfield ROI*.
+- Provide `mu_w` and `H` to export absolute α; otherwise a relative α proxy is exported.
 
-**Roadmap**
-A PINN module (weakly supervised with PDE residuals + Faraday consistency + pixel alpha) will be added for parameter identification (k_eff, relative permeability exponent, detachment/slip constants, kappa_eff, D_eff).
+## Roadmap: PINN module
+PDE residuals + boundary + **pixel α loss** + **Faraday consistency**; parameters: `k_eff`, rel. permeability exponent, detachment/slip, `kappa_eff`, `D_eff`.
