@@ -1,27 +1,37 @@
 # aem-neutron-pinn
 
-Data-first repo for 2D neutron imaging of AEM electrolyzers.
+<p align="right">
+  <a href="README.zh-CN.md"><img alt="中文" src="https://img.shields.io/badge/lang-%E4%B8%AD%E6%96%87-red"></a>
+  <a href="README.md"><img alt="English" src="https://img.shields.io/badge/lang-English-blue"></a>
+</p>
 
-**Goals**
-- Align frames (deskew + window rectification) so pixels are comparable across operating points.
-- Two-level ROIs: Window ROI (for OD/alpha) and Flowfield ROI (for channel-level stats).
-- Convert OD = -ln(I/I_ref) to relative/absolute alpha.
-- Batch export alpha maps and metrics (mean alpha, heterogeneity eta, axial decay length Ld, bridging flag).
+Data-first repo for 2D neutron imaging of AEM electrolyzers and weakly supervised PINN modeling.
 
-**Quick start**
-1) `pip install -r requirements.txt`
-2) Put images of one geometry in a folder and include exactly one reference frame (filename contains `ref`).
-3) Run: `python scripts/batch_process.py --in_dir your_data/geometry_A --ref_glob *ref*.png --img_glob *.png --out_dir outputs/geometry_A`
+## PINN (four losses + low-dim stream function)
 
-**Outputs**
-- *_warped_window.png : rectified window (use for OD)
-- *_alpha_rel.png     : relative alpha (0-1)
-- metrics.csv         : bar_alpha, eta, Ld, bridge per image
+```bash
+python pinn/train_pinn.py \ 
+  --alpha_img path/to/alpha.png \ 
+  --roi_mask path/to/roi.png \ 
+  --chi_act path/to/chi.png \ 
+  --j 0.2 --Q 100 --inlet_side left
+```
 
-**Notes**
-- Use the same reference frame for all operating points of a given geometry.
-- Compute OD/alpha inside Window ROI; compute stats inside Flowfield ROI.
-- If you know mu_w (water attenuation) and H (effective thickness), the script can output absolute alpha; otherwise it returns relative alpha.
+### What are the inputs?
+- **alpha_img**: pixelwise relative alpha in [0,1] inside the ROI (obtained from OD map).
+- **j, Q**: scalars for the current density and bulk flow rate of *this frame*.
+- **chi_act**: binary mask of active area; if omitted, the script uses ROI (1s everywhere).
 
-**Roadmap**
-A PINN module (weakly supervised with PDE residuals + Faraday consistency + pixel alpha) will be added for parameter identification (k_eff, relative permeability exponent, detachment/slip constants, kappa_eff, D_eff).
+### Loss roles
+```mermaid
+flowchart LR
+  A[Pixels: alpha_img] -- L_data --> G[alpha_theta(x,y)]
+  P[PDE residual] -- L_PDE --> G
+  F[Faraday integral
+  (sum Sg vs C(j))] -- L_F --> Params[beta, D_eff, k_out, psi]
+  Q[Flow-rate consistency
+  (inlet flux vs Q)] -- L_Q --> U[psi -> u]
+  G --> P
+  U --> P
+  Params --> P
+```
